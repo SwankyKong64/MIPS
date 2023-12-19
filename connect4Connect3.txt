@@ -1,0 +1,1458 @@
+################################################################################################################################################################
+#					Connect4 
+#					
+#					
+################################################################################################################################################################
+.data
+title0: .asciiz "\n       _  _  _                                                                              _                  _    "                           
+title1: .asciiz "\n    _ (_)(_)(O) _                                                                          (_)              _ (_)   "                                 "   
+title2: .asciiz "\n   (_)         (_)    _  _  _     _  _  _  _    _  _  _  _     _  _  _  _      _  _  _   _ (_) _  _      _ (X)(_)   "
+title3: .asciiz "\n   (_)             _ (_)(_)(X) _ (_)(_)(O)(_)_ (_)(_)(_)(_)_  (_)(_)(_)(_)_  _(_)(_)(_) (_)(_)(_)(_)  _ (X)   (_)   "    
+title4: .asciiz "\n   (_)            (_)         (_)(X)        (_)(_)        (_)(_) _  _  _ (_)(_)            (_)       (O) _  _ (_)   "   
+title5: .asciiz "\n   (X)          _ (_)         (O)(O)        (_)(_)        (_)(_)(O)(O)(O)(_)(_)            (_)     _ (_)(_)(_)(_)(_)"  
+title6: .asciiz "\n   (_) _  _  _ (_)(_) _  _  _ (_)(X)        (X)(_)        (_)(_)_  _  _  _  (_)_  _  _     (_)_  _(_)         (_)   " 
+title7: .asciiz "\n      (_)(_)(_)      (_)(_)(_)   (_)        (_)(X)        (_)  (_)(_)(_)(_)   (_)(_)(_)      (_)(_)           (_)   \n\n\n" 
+
+end0: .asciiz "\n  ______ _______ _______ _______       _____  _    _ _______  ______"
+end1: .asciiz "\n |  ____ |_____| |  |  | |______      |     |  \\  /  |______ |_____/"
+end2: .asciiz "\n |_____| |     | |  |  | |______      |_____|   \\/   |______ |    \\_\n\n"
+################################################################################################################################################################
+#					ascii art copied from "https://patorjk.com/software/taag/#p=display&f=Graffiti&t=Type%20Something%20"
+#					and "https://www.asciiart.eu/miscellaneous/dice"
+################################################################################################################################################################
+dice0: .asciiz "\n    _______            "
+dice1: .asciiz "\n  /\\\       \\\          "
+dice2: .asciiz "\n /()\\\   ()  \\\          "
+dice3: .asciiz "\n/    \\\_______\\\         "
+dice4: .asciiz "\n\\\    /()     /         "
+dice5: .asciiz "\n \\\()/   ()  /          "
+dice6: .asciiz "\n  \\\/_____()/\n"
+
+empty: .byte '_'
+ex: .byte 'X'
+oh: .byte 'O'
+
+left: .asciiz "("
+right: .asciiz ")"
+newLine: .asciiz "\n"
+slotNums: .asciiz "\n 1  2  3  4  5  6  7"
+space: .asciiz "\t\t"
+
+array:
+.byte '_','_','_','_','_','_','_'
+.byte '_','_','_','_','_','_','_'
+.byte '_','_','_','_','_','_','_'
+.byte '_','_','_','_','_','_','_'
+.byte '_','_','_','_','_','_','_'
+.byte '_','_','_','_','_','_','_'
+
+pitch: .byte 67 
+duration: .byte 127
+instrument: .byte 60
+volume: .byte 127
+
+prompt1: .asciiz "\nEnter a slot number:"
+prompt2: .asciiz "\nIncorrect value, choose 1 through 7\nEnter a slot number:"
+prompt3: .asciiz "\nSlot is full\nEnter a slot number:"
+prompt4: .asciiz "\nWelcome to Connect4\nPlayer 1 press 1 or any odd number to choose 'X'\nPress 0 or any even number to select 'O'\nPress Enter to choose at random by dice roll:"
+prompt5: .asciiz "Press 1 or any number to play again\nPress 0 to close Connect4:\t"
+prompt6: .asciiz " is the result of your roll"
+victory: .asciiz "\n You connected 4! YOU WIN!!"
+
+.text
+################################################################################################################################################################
+#					This is the begining on the main function  
+#					sections contributing to a specific task will be labeled in these comments 
+#					to improve readablibilty and comparing with C 
+################################################################################################################################################################
+main:
+addi $t0, $zero, 0
+la $a1, empty
+lb $t1, 0($a1)
+la $a2, array
+sb $t1, 0($a2)
+for:
+addi $a2, $a2, 1
+sb $t1, 0($a2)
+addi $t0, $t0, 1
+bne $t0, 42, for 	#initialize the array to contain empty tokens in case the game is repeated
+
+addi $t7, $zero, 0 #used as a counter variable to change turns0 and to display a 1 time welcome message
+li $v0, 4	#loads the title display messgae
+la $a0, title1	
+syscall
+la $a0, title2
+syscall
+la $a0, title3
+syscall
+la $a0, title4
+syscall
+la $a0, title5
+syscall
+la $a0, title6
+syscall
+la $a0, title7
+syscall
+################################################################################################################################################################
+#					The following section prints out the game board using a nested for loop style
+################################################################################################################################################################
+
+print:
+la $s0, array
+addi $t0, $zero, 0 	#initialize $t0 on for loop counter
+li $t6, 7 		#use $t6 for the mod operation to print the board
+
+Loop1: 
+bne $t0, 42, slotLabel	#end of for loop/ last iteration
+li $v0, 4
+la $a0, slotNums
+syscall
+bne $t7, 0, skip1
+la $a0, prompt4		#Welcome... 
+syscall
+
+
+
+li $v0, 12
+syscall
+
+beq $v0, '\n', diceRoll
+beq $v0, '1', loadX
+beq $v0, '0', loadO
+bne $v0, '\n', skipRandom
+################################################################################################################################################################
+#					branches to a function that uses random number generator
+################################################################################################################################################################
+loadX:
+addi $s1, $zero, 1
+j skipRandom
+loadO:
+addi $s1, $zero, 0
+j skipRandom
+
+returnRandom:
+move $s1, $t3
+
+skipRandom:
+add $t7, $s1, $t7	#the added value to $t7 
+li $v0, 4
+la $a0, newLine
+syscall
+skip1:
+la $a0, prompt1		#Enter a slot num
+syscall
+
+slotLabel:
+beq $t0, 42, exit 	#limit of 42 board spaces, exits for loop at last iteration
+div $t0, $t6   
+mfhi $t5
+bne $t5,0, skip		#prints new lines for the board display
+li $v0, 4
+la $a0, newLine
+syscall		#use mod to determine when to print a new line
+
+skip:
+li $v0, 4
+la $a0, left
+syscall
+
+add $t1, $s0, $t0 
+lb $t2, 0($t1)
+li $v0, 11
+addi $a0, $t2, 0
+syscall 	#prints character from array to game board display
+
+li $v0, 4
+la $a0, right
+syscall
+
+addi $t0, $t0, 1 	#increment for loop counter
+j Loop1
+exit:		#end of for loop
+
+################################################################################################################################################################
+#			calls the connect4 function, reads the users move for the switch block, 
+#			and changes turn by loading the next player's token 'X' or 'O'
+################################################################################################################################################################
+choice: 
+jal check4
+li $v0, 5
+syscall
+move $t0, $v0
+li $t6, 2
+addi $t7, $t7, 1 	#$t7 turn change 
+div $t7, $t6
+mfhi $t5		#0 or 1 
+
+bnez $t5, loadOh
+la $t1, ex
+lb $t2, 0($t1) 		
+j loadedEx
+loadOh:			
+la $t1, oh
+lb $t2, 0($t1)
+loadedEx:
+blt $t0, 1, prompt2b
+bgt $t0, 7, prompt2b
+beq $t0, 1, slot1
+beq $t0, 2, slot2
+beq $t0, 3, slot3
+beq $t0, 4, slot4
+beq $t0, 5, slot5
+beq $t0, 6, slot6
+beq $t0, 7, slot7
+################################################################################################################################################################
+#					End portion code plays a tone, prints a game over message and closes the program or restarts the game
+################################################################################################################################################################
+finish:
+li $v0, 31 
+la $a0, pitch
+la $a1, duration 
+la $a2, instrument
+la $a3, volume 
+
+syscall 
+
+li $v0, 4		
+la $a0, end0
+syscall
+la $a0, end1
+syscall
+la $a0, end2
+syscall
+
+li $v0,4
+la $a0, prompt5
+syscall
+li $v0, 5
+syscall
+move $t3, $v0
+beq $t3, 0, terminate
+bne $t3, 0, main
+terminate:
+li $v0, 10 
+syscall
+################################################################################################################################################################
+################################################################################################################################################################
+################################################################################################################################################################
+################################################################################################################################################################
+################################################################################################################################################################
+#					function loads a random number 0-6 to represent the roll of a die and prints a dice image
+################################################################################################################################################################
+diceRoll:
+li $a1, 7
+li $v0, 42
+syscall
+move $t3, $a0
+li $v0, 1
+syscall
+li $v0, 4
+la $a0, prompt6
+syscall
+la $a0, dice0
+syscall
+la $a0, dice1
+syscall
+la $a0, dice2
+syscall
+la $a0, dice3
+syscall
+la $a0, dice4
+syscall
+la $a0, dice5
+syscall
+la $a0, dice6
+syscall
+j returnRandom
+
+################################################################################################################################################################
+#					prints a prompt if the user enters a number other than the accepted values
+################################################################################################################################################################
+prompt2b:
+li $v0, 4
+la $a0, prompt2
+syscall
+addi $t7, $t7, 1	#keeps the token from changing when an incorrect value is chosen
+
+j choice 
+################################################################################################################################################################
+#					the following emulates a switch block in C where a different outcome will occur in 
+#					depending on the user input's choice of 1 through 7
+################################################################################################################################################################
+slot1:
+la $t3, array 
+lb $t0, 35($t3)
+bne $t0, '_', cont11 #if not empty ('_') then move to another row, the position above it to "stack" the tocken as in connect4
+sb $t2, 35($t3) #modify the position if empty
+j print
+cont11:
+lb $t0, 28($t3)
+bne $t0,'_', cont12
+sb $t2, 28($t3) 
+j print 
+cont12:
+lb $t0, 21($t3)
+bne $t0,'_', cont13
+sb $t2, 21($t3) 
+j print 
+cont13:
+lb $t0, 14($t3)
+bne $t0,'_', cont14
+sb $t2, 14($t3) 
+j print 
+cont14:
+lb $t0, 7($t3)
+bne $t0,'_', cont15
+sb $t2, 7($t3) 
+j print 
+cont15:
+lb $t0, 0($t3)
+bne $t0,'_', cont16
+sb $t2, 0($t3) 
+j print 
+cont16:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot2:
+la $t3, array 
+lb $t0, 36($t3)
+bne $t0, '_', cont21
+sb $t2, 36($t3) 
+j print
+cont21:
+lb $t0, 29($t3)
+bne $t0,'_', cont22
+sb $t2, 29($t3) 
+j print 
+cont22:
+lb $t0, 22($t3)
+bne $t0,'_', cont23
+sb $t2, 22($t3) 
+j print 
+cont23:
+lb $t0, 15($t3)
+bne $t0,'_', cont24
+sb $t2, 15($t3) 
+j print 
+cont24:
+lb $t0, 8($t3)
+bne $t0,'_', cont25
+sb $t2, 8($t3) 
+j print 
+cont25:
+lb $t0, 1($t3)
+bne $t0,'_', cont26
+sb $t2, 1($t3) 
+j print 
+cont26:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot3:
+la $t3, array 
+lb $t0, 37($t3)
+bne $t0, '_', cont31
+sb $t2, 37($t3) 
+j print
+cont31:
+lb $t0, 30($t3)
+bne $t0,'_', cont32
+sb $t2, 30($t3) 
+j print 
+cont32:
+lb $t0, 23($t3)
+bne $t0,'_', cont33
+sb $t2, 23($t3) 
+j print 
+cont33:
+lb $t0, 16($t3)
+bne $t0,'_', cont34
+sb $t2, 16($t3) 
+j print 
+cont34:
+lb $t0, 9($t3)
+bne $t0,'_', cont35
+sb $t2, 9($t3) 
+j print 
+cont35:
+lb $t0, 2($t3)
+bne $t0,'_', cont36
+sb $t2, 2($t3) 
+j print 
+cont36:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot4:
+la $t3, array 
+lb $t0, 38($t3)
+bne $t0, '_', cont41
+sb $t2, 38($t3) 
+j print
+cont41:
+lb $t0, 31($t3)
+bne $t0,'_', cont42
+sb $t2, 31($t3) 
+j print 
+cont42:
+lb $t0, 24($t3)
+bne $t0,'_', cont43
+sb $t2, 24($t3) 
+j print 
+cont43:
+lb $t0, 17($t3)
+bne $t0,'_', cont44
+sb $t2, 17($t3) 
+j print 
+cont44:
+lb $t0, 10($t3)
+bne $t0,'_', cont45
+sb $t2, 10($t3) 
+j print 
+cont45:
+lb $t0, 3($t3)
+bne $t0,'_', cont46
+sb $t2, 3($t3) 
+j print 
+cont46:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot5: 
+la $t3, array 
+lb $t0, 39($t3)
+bne $t0, '_', cont51
+sb $t2, 39($t3) 
+j print
+cont51:
+lb $t0, 32($t3)
+bne $t0,'_', cont52
+sb $t2, 32($t3) 
+j print 
+cont52:
+lb $t0, 25($t3)
+bne $t0,'_', cont53
+sb $t2, 25($t3) 
+j print 
+cont53:
+lb $t0, 18($t3)
+bne $t0,'_', cont54
+sb $t2, 18($t3) 
+j print 
+cont54:
+lb $t0, 11($t3)
+bne $t0,'_', cont55
+sb $t2, 11($t3) 
+j print 
+cont55:
+lb $t0, 4($t3)
+bne $t0,'_', cont56
+sb $t2, 4($t3) 
+j print 
+cont56:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot6:
+la $t3, array 
+lb $t0, 40($t3)
+bne $t0, '_', cont61
+sb $t2, 40($t3) 
+j print
+cont61:
+lb $t0, 33($t3)
+bne $t0,'_', cont62
+sb $t2, 33($t3) 
+j print 
+cont62:
+lb $t0, 26($t3)
+bne $t0,'_', cont63
+sb $t2, 26($t3) 
+j print 
+cont63:
+lb $t0, 19($t3)
+bne $t0,'_', cont64
+sb $t2, 19($t3) 
+j print 
+cont64:
+lb $t0, 12($t3)
+bne $t0,'_', cont65
+sb $t2, 12($t3) 
+j print 
+cont65:
+lb $t0, 5($t3)
+bne $t0,'_', cont66
+sb $t2, 5($t3) 
+j print 
+cont66:
+li $v0, 4 
+la $a0, prompt3
+syscall
+j choice
+
+slot7:
+la $t3, array 
+lb $t0, 41($t3)
+bne $t0, '_', cont71
+sb $t2, 41($t3) 
+j print
+cont71:
+lb $t0, 34($t3)
+bne $t0,'_', cont72
+sb $t2, 34($t3) 
+j print 
+cont72:
+lb $t0, 27($t3)
+bne $t0,'_', cont73
+sb $t2, 27($t3) 
+j print 
+cont73:
+lb $t0, 20($t3)
+bne $t0,'_', cont74
+sb $t2, 20($t3) 
+j print 
+cont74:
+lb $t0, 13($t3)
+bne $t0,'_', cont75
+sb $t2, 13($t3) 
+j print 
+cont75:
+lb $t0, 6($t3)
+bne $t0,'_', cont76
+sb $t2, 6($t3) 
+j print 
+cont76:
+li $v0, 4 
+la $a0, prompt3
+syscall
+
+j choice
+################################################################################################################################################################
+################################################################################################################################################################
+
+################################################################################################################################################################
+#
+#					The following section checks is the C equivalent to:
+#					bool connect4(char tokenX);
+#					it detects four silimar tokens in adjacent postions on the gameboard, 
+#					checking all combinations through a C else if, else if chain stye 
+#################################################################################################################################################################
+check4:
+li $v0, 4
+la $s1, array
+################################################################################################################################################################
+#					begin checking all column combinations
+################################################################################################################################################################
+lb $a0, 41($s1)		#loading the value of 4 sppcific positions on the gameboad
+lb $a1, 34($s1)
+lb $a2, 27($s1)
+lb $a3, 20($s1)
+beq $a0, '_', next	#checks the first value to amke sure its a token value 'X' or 'O'
+bne $a0, $a1, next	#compares the adjacent loaded token values to ensure they are all similar
+bne $a1, $a2, next
+bne $a2, $a3, next	#the following lines are reached if the 4 specfied positions held the same token value
+la $a0, victory
+syscall
+j finish		
+next:			#else if check the next combination
+lb $a0, 34($s1)
+lb $a1, 27($s1)
+lb $a2, 20($s1)
+lb $a3, 13($s1)
+beq $a0, '_', next1
+bne $a0, $a1, next1
+bne $a1, $a2, next1
+bne $a2, $a3, next1
+la $a0, victory
+syscall
+j finish
+next1:
+lb $a0, 27($s1)
+lb $a1, 20($s1)
+lb $a2, 13($s1)
+lb $a3, 6($s1)
+beq $a0, '_', next2
+bne $a0, $a1, next2
+bne $a1, $a2, next2
+bne $a2, $a3, next2
+la $a0, victory
+syscall
+j finish
+
+next2:
+lb $a0, 40($s1)
+lb $a1, 33($s1)
+lb $a2, 26($s1)
+lb $a3, 19($s1)
+beq $a0, '_', next3
+bne $a0, $a1, next3
+bne $a1, $a2, next3
+bne $a2, $a3, next3
+la $a0, victory
+syscall
+j finish
+next3:
+lb $a0, 33($s1)
+lb $a1, 26($s1)
+lb $a2, 19($s1)
+lb $a3, 12($s1)
+beq $a0, '_', next4
+bne $a0, $a1, next4
+bne $a1, $a2, next4
+bne $a2, $a3, next4
+la $a0, victory
+syscall
+j finish
+next4:
+lb $a0, 26($s1)
+lb $a1, 19($s1)
+lb $a2, 12($s1)
+lb $a3, 5($s1)
+beq $a0, '_', next5
+bne $a0, $a1, next5
+bne $a1, $a2, next5
+bne $a2, $a3, next5
+la $a0, victory
+syscall
+j finish
+
+
+next5:
+lb $a0, 39($s1)
+lb $a1, 32($s1)
+lb $a2, 25($s1)
+lb $a3, 18($s1)
+beq $a0, '_', next6
+bne $a0, $a1, next6
+bne $a1, $a2, next6
+bne $a2, $a3, next6
+la $a0, victory
+syscall
+j finish
+next6:
+lb $a0, 32($s1)
+lb $a1, 25($s1)
+lb $a2, 18($s1)
+lb $a3, 11($s1)
+beq $a0, '_', next7
+bne $a0, $a1, next7
+bne $a1, $a2, next7
+bne $a2, $a3, next7
+la $a0, victory
+syscall
+j finish
+next7:
+lb $a0, 25($s1)
+lb $a1, 18($s1)
+lb $a2, 11($s1)
+lb $a3, 4($s1)
+beq $a0, '_', next8
+bne $a0, $a1, next8
+bne $a1, $a2, next8
+bne $a2, $a3, next8
+la $a0, victory
+syscall
+j finish
+
+
+next8:
+lb $a0, 38($s1)
+lb $a1, 31($s1)
+lb $a2, 24($s1)
+lb $a3, 17($s1)
+beq $a0, '_', next9
+bne $a0, $a1, next9
+bne $a1, $a2, next9
+bne $a2, $a3, next9
+la $a0, victory
+syscall
+j finish
+next9:
+lb $a0, 31($s1)
+lb $a1, 24($s1)
+lb $a2, 17($s1)
+lb $a3, 10($s1)
+beq $a0, '_', nextA
+bne $a0, $a1, nextA
+bne $a1, $a2, nextA
+bne $a2, $a3, nextA
+la $a0, victory
+syscall
+j finish
+nextA:
+lb $a0, 24($s1)
+lb $a1, 17($s1)
+lb $a2, 10($s1)
+lb $a3, 3($s1)
+beq $a0, '_', nextB
+bne $a0, $a1, nextB
+bne $a1, $a2, nextB
+bne $a2, $a3, nextB
+la $a0, victory
+syscall
+j finish
+
+
+nextB:
+lb $a0, 37($s1)
+lb $a1, 30($s1)
+lb $a2, 23($s1)
+lb $a3, 16($s1)
+beq $a0, '_', nextC
+bne $a0, $a1, nextC
+bne $a1, $a2, nextC
+bne $a2, $a3, nextC
+la $a0, victory
+syscall
+j finish
+nextC:
+lb $a0, 30($s1)
+lb $a1, 23($s1)
+lb $a2, 16($s1)
+lb $a3, 9($s1)
+beq $a0, '_', nextD
+bne $a0, $a1, nextD
+bne $a1, $a2, nextD
+bne $a2, $a3, nextD
+la $a0, victory
+syscall
+j finish
+nextD:
+lb $a0, 23($s1)
+lb $a1, 16($s1)
+lb $a2, 9($s1)
+lb $a3, 2($s1)
+beq $a0, '_', nextE
+bne $a0, $a1, nextE
+bne $a1, $a2, nextE
+bne $a2, $a3, nextE
+la $a0, victory
+syscall
+j finish
+
+
+nextE:
+lb $a0, 36($s1)
+lb $a1, 29($s1)
+lb $a2, 22($s1)
+lb $a3, 15($s1)
+beq $a0, '_', next11
+bne $a0, $a1, next11
+bne $a1, $a2, next11
+bne $a2, $a3, next11
+la $a0, victory
+syscall
+j finish
+next11:
+lb $a0, 29($s1)
+lb $a1, 22($s1)
+lb $a2, 15($s1)
+lb $a3, 8($s1)
+beq $a0, '_', next12
+bne $a0, $a1, next12
+bne $a1, $a2, next12
+bne $a2, $a3, next12
+la $a0, victory
+syscall
+j finish
+next12:
+lb $a0, 22($s1)
+lb $a1, 15($s1)
+lb $a2, 8($s1)
+lb $a3, 1($s1)
+beq $a0, '_', next13
+bne $a0, $a1, next13
+bne $a1, $a2, next13
+bne $a2, $a3, next13
+la $a0, victory
+syscall
+j finish
+
+
+next13:
+lb $a0, 35($s1)
+lb $a1, 28($s1)
+lb $a2, 21($s1)
+lb $a3, 14($s1)
+beq $a0, '_', next14
+bne $a0, $a1, next14
+bne $a1, $a2, next14
+bne $a2, $a3, next14
+la $a0, victory
+syscall
+j finish
+next14:
+lb $a0, 28($s1)
+lb $a1, 21($s1)
+lb $a2, 14($s1)
+lb $a3, 7($s1)
+beq $a0, '_', next15
+bne $a0, $a1, next15
+bne $a1, $a2, next15
+bne $a2, $a3, next15
+la $a0, victory
+syscall
+j finish
+next15:
+lb $a0, 21($s1)
+lb $a1, 14($s1)
+lb $a2, 7($s1)
+lb $a3, 0($s1)
+beq $a0, '_', next16
+bne $a0, $a1, next16
+bne $a1, $a2, next16
+bne $a2, $a3, next16
+la $a0, victory
+syscall
+j finish
+################################################################################################################################################################
+#					begin checking all row combinations
+################################################################################################################################################################
+
+next16:
+lb $a0, 35($s1)
+lb $a1, 36($s1)
+lb $a2, 37($s1)
+lb $a3, 38($s1)
+beq $a0, '_', next17
+bne $a0, $a1, next17
+bne $a1, $a2, next17
+bne $a2, $a3, next17
+la $a0, victory
+syscall
+j finish
+next17:
+lb $a0, 36($s1)
+lb $a1, 37($s1)
+lb $a2, 38($s1)
+lb $a3, 39($s1)
+beq $a0, '_', next18
+bne $a0, $a1, next18
+bne $a1, $a2, next18
+bne $a2, $a3, next18
+la $a0, victory
+syscall
+j finish
+next18:
+lb $a0, 37($s1)
+lb $a1, 38($s1)
+lb $a2, 39($s1)
+lb $a3, 40($s1)
+beq $a0, '_', next19
+bne $a0, $a1, next19
+bne $a1, $a2, next19
+bne $a2, $a3, next19
+la $a0, victory
+syscall
+j finish
+next19:
+lb $a0, 38($s1)
+lb $a1, 39($s1)
+lb $a2, 40($s1)
+lb $a3, 41($s1)
+beq $a0, '_', next1A
+bne $a0, $a1, next1A
+bne $a1, $a2, next1A
+bne $a2, $a3, next1A
+la $a0, victory
+syscall
+j finish
+
+
+next1A:
+lb $a0, 28($s1)
+lb $a1, 29($s1)
+lb $a2, 30($s1)
+lb $a3, 31($s1)
+beq $a0, '_', next1B
+bne $a0, $a1, next1B
+bne $a1, $a2, next1B
+bne $a2, $a3, next1B
+la $a0, victory
+syscall
+j finish
+next1B:
+
+lb $a0, 29($s1)
+lb $a1, 30($s1)
+lb $a2, 31($s1)
+lb $a3, 32($s1)
+beq $a0, '_', next1c
+bne $a0, $a1, next1c
+bne $a1, $a2, next1c
+bne $a2, $a3, next1c
+la $a0, victory
+syscall
+j finish
+next1c:
+lb $a0, 30($s1)
+lb $a1, 31($s1)
+lb $a2, 32($s1)
+lb $a3, 33($s1)
+beq $a0, '_', next1d
+bne $a0, $a1, next1d
+bne $a1, $a2, next1d
+bne $a2, $a3, next1d
+la $a0, victory
+syscall
+j finish
+next1d:
+lb $a0, 31($s1)
+lb $a1, 32($s1)
+lb $a2, 33($s1)
+lb $a3, 34($s1)
+beq $a0, '_', next1e
+bne $a0, $a1, next1e
+bne $a1, $a2, next1e
+bne $a2, $a3, next1e
+la $a0, victory
+syscall
+j finish
+next1e:
+
+
+lb $a0, 21($s1)
+lb $a1, 22($s1)
+lb $a2, 23($s1)
+lb $a3, 24($s1)
+beq $a0, '_', next1f
+bne $a0, $a1, next1f
+bne $a1, $a2, next1f
+bne $a2, $a3, next1f
+la $a0, victory
+syscall
+j finish
+next1f:
+lb $a0, 22($s1)
+lb $a1, 23($s1)
+lb $a2, 24($s1)
+lb $a3, 25($s1)
+beq $a0, '_', next21
+bne $a0, $a1, next21
+bne $a1, $a2, next21
+bne $a2, $a3, next21
+la $a0, victory
+syscall
+j finish
+next21:
+lb $a0, 23($s1)
+lb $a1, 24($s1)
+lb $a2, 25($s1)
+lb $a3, 26($s1)
+beq $a0, '_', next22
+bne $a0, $a1, next22
+bne $a1, $a2, next22
+bne $a2, $a3, next22
+la $a0, victory
+syscall
+j finish
+next22:
+lb $a0, 24($s1)
+lb $a1, 25($s1)
+lb $a2, 26($s1)
+lb $a3, 27($s1)
+beq $a0, '_', next23
+bne $a0, $a1, next23
+bne $a1, $a2, next23
+bne $a2, $a3, next23
+la $a0, victory
+syscall
+j finish
+next23:
+
+
+lb $a0, 14($s1)
+lb $a1, 15($s1)
+lb $a2, 16($s1)
+lb $a3, 17($s1)
+beq $a0, '_', next24
+bne $a0, $a1, next24
+bne $a1, $a2, next24
+bne $a2, $a3, next24
+la $a0, victory
+syscall
+j finish
+next24:
+lb $a0, 15($s1)
+lb $a1, 16($s1)
+lb $a2, 17($s1)
+lb $a3, 18($s1)
+beq $a0, '_', next25
+bne $a0, $a1, next25
+bne $a1, $a2, next25
+bne $a2, $a3, next25
+la $a0, victory
+syscall
+j finish
+next25:
+lb $a0, 16($s1)
+lb $a1, 17($s1)
+lb $a2, 18($s1)
+lb $a3, 19($s1)
+beq $a0, '_', next26
+bne $a0, $a1, next26
+bne $a1, $a2, next26
+bne $a2, $a3, next26
+la $a0, victory
+syscall
+j finish
+next26:
+lb $a0, 17($s1)
+lb $a1, 18($s1)
+lb $a2, 19($s1)
+lb $a3, 20($s1)
+beq $a0, '_', next27
+bne $a0, $a1, next27
+bne $a1, $a2, next27
+bne $a2, $a3, next27
+la $a0, victory
+syscall
+j finish
+next27:
+
+ 
+lb $a0, 7($s1)
+lb $a1, 8($s1)
+lb $a2, 9($s1)
+lb $a3, 10($s1)
+beq $a0, '_', next28
+bne $a0, $a1, next28
+bne $a1, $a2, next28
+bne $a2, $a3, next28
+la $a0, victory
+syscall
+j finish
+next28:
+lb $a0, 8($s1)
+lb $a1, 9($s1)
+lb $a2, 10($s1)
+lb $a3, 11($s1)
+beq $a0, '_', next29
+bne $a0, $a1, next29
+bne $a1, $a2, next29
+bne $a2, $a3, next29
+la $a0, victory
+syscall
+j finish
+next29:
+lb $a0, 9($s1)
+lb $a1, 10($s1)
+lb $a2, 11($s1)
+lb $a3, 12($s1)
+beq $a0, '_', next2a
+bne $a0, $a1, next2a
+bne $a1, $a2, next2a
+bne $a2, $a3, next2a
+la $a0, victory
+syscall
+j finish
+next2a:
+lb $a0, 10($s1)
+lb $a1, 11($s1)
+lb $a2, 12($s1)
+lb $a3, 13($s1)
+beq $a0, '_', next2b
+bne $a0, $a1, next2b
+bne $a1, $a2, next2b
+bne $a2, $a3, next2b
+la $a0, victory
+syscall
+j finish
+next2b:
+
+ 
+lb $a0, 0($s1)
+lb $a1, 1($s1)
+lb $a2, 2($s1)
+lb $a3, 3($s1)
+beq $a0, '_', next2c
+bne $a0, $a1, next2c
+bne $a1, $a2, next2c
+bne $a2, $a3, next2c
+la $a0, victory
+syscall
+j finish
+next2c:
+lb $a0, 1($s1)
+lb $a1, 2($s1)
+lb $a2, 3($s1)
+lb $a3, 4($s1)
+beq $a0, '_', next2d
+bne $a0, $a1, next2d
+bne $a1, $a2, next2d
+bne $a2, $a3, next2d
+la $a0, victory
+syscall
+j finish
+next2d:
+lb $a0, 2($s1)
+lb $a1, 3($s1)
+lb $a2, 4($s1)
+lb $a3, 5($s1)
+beq $a0, '_', next2e
+bne $a0, $a1, next2e
+bne $a1, $a2, next2e
+bne $a2, $a3, next2e
+la $a0, victory
+syscall
+j finish
+next2e:
+lb $a0, 3($s1)
+lb $a1, 4($s1)
+lb $a2, 5($s1)
+lb $a3, 6($s1)
+beq $a0, '_', next2f
+bne $a0, $a1, next2f
+bne $a1, $a2, next2f
+bne $a2, $a3, next2f
+la $a0, victory
+syscall
+j finish
+next2f:
+################################################################################################################################################################
+#						follow checks all diagonals
+################################################################################################################################################################
+
+
+lb $a0, 21($s1)
+lb $a1, 15($s1)
+lb $a2, 9($s1)
+lb $a3, 3($s1)
+beq $a0, '_', next31
+bne $a0, $a1, next31
+bne $a1, $a2, next31
+bne $a2, $a3, next31
+la $a0, victory
+syscall
+j finish
+next31:
+
+
+lb $a0, 28($s1)
+lb $a1, 22($s1)
+lb $a2, 16($s1)
+lb $a3, 10($s1)
+beq $a0, '_', next32
+bne $a0, $a1, next32
+bne $a1, $a2, next32
+bne $a2, $a3, next32
+la $a0, victory
+syscall
+j finish
+next32:
+lb $a0, 22($s1)
+lb $a1, 16($s1)
+lb $a2, 10($s1)
+lb $a3, 4($s1)
+beq $a0, '_', next33
+bne $a0, $a1, next33
+bne $a1, $a2, next33
+bne $a2, $a3, next33
+la $a0, victory
+syscall
+j finish
+next33:
+
+
+lb $a0, 35($s1)
+lb $a1, 29($s1)
+lb $a2, 23($s1)
+lb $a3, 17($s1)
+beq $a0, '_', next34
+bne $a0, $a1, next34
+bne $a1, $a2, next34
+bne $a2, $a3, next34
+la $a0, victory
+syscall
+j finish
+next34:
+lb $a0, 29($s1)
+lb $a1, 23($s1)
+lb $a2, 17($s1)
+lb $a3, 11($s1)
+beq $a0, '_', next35
+bne $a0, $a1, next35
+bne $a1, $a2, next35
+bne $a2, $a3, next35
+la $a0, victory
+syscall
+j finish
+next35:
+lb $a0, 23($s1)
+lb $a1, 17($s1)
+lb $a2, 11($s1)
+lb $a3, 5($s1)
+beq $a0, '_', next36
+bne $a0, $a1, next36
+bne $a1, $a2, next36
+bne $a2, $a3, next36
+la $a0, victory
+syscall
+j finish
+next36:
+
+
+lb $a0, 36($s1)
+lb $a1, 30($s1)
+lb $a2, 24($s1)
+lb $a3, 18($s1)
+beq $a0, '_', next37
+bne $a0, $a1, next37
+bne $a1, $a2, next37
+bne $a2, $a3, next37
+la $a0, victory
+syscall
+j finish
+next37:
+lb $a0, 30($s1)
+lb $a1, 24($s1)
+lb $a2, 18($s1)
+lb $a3, 12($s1)
+beq $a0, '_', next38
+bne $a0, $a1, next38
+bne $a1, $a2, next38
+bne $a2, $a3, next38
+la $a0, victory
+syscall
+j finish
+next38:
+lb $a0, 24($s1)
+lb $a1, 18($s1)
+lb $a2, 12($s1)
+lb $a3, 6($s1)
+beq $a0, '_', next39
+bne $a0, $a1, next39
+bne $a1, $a2, next39
+bne $a2, $a3, next39
+la $a0, victory
+syscall
+j finish
+next39:
+
+
+lb $a0, 37($s1)
+lb $a1, 31($s1)
+lb $a2, 25($s1)
+lb $a3, 19($s1)
+beq $a0, '_', next3a
+bne $a0, $a1, next3a
+bne $a1, $a2, next3a
+bne $a2, $a3, next3a
+la $a0, victory
+syscall
+j finish
+next3a:
+lb $a0, 31($s1)
+lb $a1, 25($s1)
+lb $a2, 19($s1)
+lb $a3, 13($s1)
+beq $a0, '_', next3b
+bne $a0, $a1, next3b
+bne $a1, $a2, next3b
+bne $a2, $a3, next3b
+la $a0, victory
+syscall
+j finish
+next3b:
+
+
+lb $a0, 38($s1)
+lb $a1, 32($s1)
+lb $a2, 26($s1)
+lb $a3, 20($s1)
+beq $a0, '_', next3c
+bne $a0, $a1, next3c
+bne $a1, $a2, next3c
+bne $a2, $a3, next3c
+la $a0, victory
+syscall
+j finish
+next3c:
+
+
+lb $a0, 27($s1)
+lb $a1, 19($s1)
+lb $a2, 11($s1)
+lb $a3, 3($s1)
+beq $a0, '_', next3d
+bne $a0, $a1, next3d
+bne $a1, $a2, next3d
+bne $a2, $a3, next3d
+la $a0, victory
+syscall
+j finish
+next3d:
+
+
+lb $a0, 34($s1)
+lb $a1, 26($s1)
+lb $a2, 18($s1)
+lb $a3, 10($s1)
+beq $a0, '_', next3e
+bne $a0, $a1, next3e
+bne $a1, $a2, next3e
+bne $a2, $a3, next3e
+la $a0, victory
+syscall
+j finish
+next3e:
+lb $a0, 26($s1)
+lb $a1, 18($s1)
+lb $a2, 10($s1)
+lb $a3, 2($s1)
+beq $a0, '_', next3f
+bne $a0, $a1, next3f
+bne $a1, $a2, next3f
+bne $a2, $a3, next3f
+la $a0, victory
+syscall
+j finish
+next3f:
+
+
+lb $a0, 41($s1)
+lb $a1, 33($s1)
+lb $a2, 25($s1)
+lb $a3, 17($s1)
+beq $a0, '_', next41
+bne $a0, $a1, next41
+bne $a1, $a2, next41
+bne $a2, $a3, next41
+la $a0, victory
+syscall
+j finish
+next41:
+lb $a0, 33($s1)
+lb $a1, 25($s1)
+lb $a2, 17($s1)
+lb $a3, 9($s1)
+beq $a0, '_', next42
+bne $a0, $a1, next42
+bne $a1, $a2, next42
+bne $a2, $a3, next42
+la $a0, victory
+syscall
+j finish
+next42:
+lb $a0, 25($s1)
+lb $a1, 17($s1)
+lb $a2, 9($s1)
+lb $a3, 1($s1)
+beq $a0, '_', next43
+bne $a0, $a1, next43
+bne $a1, $a2, next43
+bne $a2, $a3, next43
+la $a0, victory
+syscall
+j finish
+next43:
+
+
+lb $a0, 40($s1)
+lb $a1, 32($s1)
+lb $a2, 24($s1)
+lb $a3, 16($s1)
+beq $a0, '_', next44
+bne $a0, $a1, next44
+bne $a1, $a2, next44
+bne $a2, $a3, next44
+la $a0, victory
+syscall
+j finish
+next44:
+lb $a0, 32($s1)
+lb $a1, 24($s1)
+lb $a2, 16($s1)
+lb $a3, 8($s1)
+beq $a0, '_', next45
+bne $a0, $a1, next45
+bne $a1, $a2, next45
+bne $a2, $a3, next45
+la $a0, victory
+syscall
+j finish
+next45:
+lb $a0, 24($s1)
+lb $a1, 16($s1)
+lb $a2, 8($s1)
+lb $a3, 0($s1)
+beq $a0, '_', next46
+bne $a0, $a1, next46
+bne $a1, $a2, next46
+bne $a2, $a3, next46
+la $a0, victory
+syscall
+j finish
+next46:
+
+
+lb $a0, 39($s1)
+lb $a1, 31($s1)
+lb $a2, 23($s1)
+lb $a3, 15($s1)
+beq $a0, '_', next47
+bne $a0, $a1, next47
+bne $a1, $a2, next47
+bne $a2, $a3, next47
+la $a0, victory
+syscall
+j finish
+next47:
+lb $a0, 31($s1)
+lb $a1, 23($s1)
+lb $a2, 15($s1)
+lb $a3, 7($s1)
+beq $a0, '_', next48
+bne $a0, $a1, next48
+bne $a1, $a2, next48
+bne $a2, $a3, next48
+la $a0, victory
+syscall
+j finish
+next48:
+
+
+lb $a0, 38($s1)
+lb $a1, 30($s1)
+lb $a2, 22($s1)
+lb $a3, 14($s1)
+beq $a0, '_', next99
+bne $a0, $a1, next99
+bne $a1, $a2, next99
+bne $a2, $a3, next99
+la $a0, victory
+syscall
+j finish
+
+next99:
+################################################################################################################################################################
+#					the following demonstrates use of the stack point to save the $ra value for nested function calls
+#					without use of stack point the program gets stuck in a loop where no input is accepted  
+#################################################################################################################################################################
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+
+jal stackJump
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+jr $ra
+
+
+stackJump:
+li $v0, 4
+la $a0, space
+syscall
+jr $ra
+################################################################################################################################################################
+################################################################################################################################################################
